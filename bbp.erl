@@ -9,46 +9,46 @@
 % -export([pack/1]).
 -export([encode/1]).
 
-%% 1.01 Find the last element of a list
-last([]) -> [];
-last([_,S|T]) -> last([S|T]);
-last([Last|[]]) -> Last.
+last(List) -> case List of
+    [] -> [];
+    [_,S|T] -> last([S|T]);
+    [Last|[]] -> Last
+end.
 
 %% 1.02 Find the second to last element of a list
-penultimate([]) -> "undefined";
-penultimate([_|[]]) -> "undefined";
-penultimate([P,_|[]]) -> P;
-penultimate([_,S|T]) -> penultimate([S|T]).
+penultimate([H|[]]) -> H;
+penultimate([_,H|[]]) -> H;
+penultimate(List) -> case List of
+  [P,_|[]] -> P;
+  [_,S|T] -> penultimate([S|T])
+end.
+
 
 %% 1.04 Find the length of a list
 len([]) -> 0;
-len(L) -> inner_len(L, 0).
-
-inner_len([_|[]], C) -> C+1;
-inner_len([_|T], C) -> inner_len(T, C+1).
+len([_|Tail]) -> 1 + len(Tail).
 
 %% 1.05 Reverse a list
-reverse([]) -> [];
-reverse([H|[]]) -> [H];
-reverse([H|T]) -> reverse(T) ++ [H].
+reverse(List) -> case List of
+  [] -> [];
+  [Head|[]] -> [Head];
+  [Head|Tail] -> reverse(Tail) ++ [Head]
+end.
 
 %% 1.06 Determine if a list is a palindrome
 is_palindrome([]) -> true;
 is_palindrome([_|[]]) -> true;
-is_palindrome([Head|Tail]) ->
-  case reverse(Tail) of
-    [Last|Rest] when Head == Last ->
-      is_palindrome(Rest);
-    _ ->
-     false
-  end.
+is_palindrome([Head|Tail]) -> case reverse(Tail) of
+  [Last|Rest] when Head == Last -> is_palindrome(Rest);
+  _ -> false
+end.
 
 %% 1.07 Flatten a list of lists
 flatten(List) -> case List of
   [] -> [];
   [Head|Tail] -> if
     is_list(Head) -> flatten(Head) ++ flatten(Tail);
-    is_list(Head) == false -> [Head|flatten(Tail)]
+    not is_list(Head) -> [Head|flatten(Tail)]
   end
 end.
 
@@ -59,7 +59,7 @@ distinct(List) -> case List of
   [Head,Second|[]] ->
     if
       Head == Second -> [Head];
-      Head /= Second -> [Head, Second] 
+      Head /= Second -> [Head, Second]
     end;
   [Head,Second|Tail] ->
     if
@@ -89,15 +89,25 @@ end.
 % pack([H,S|Tail]) when H /= S -> case aux_pack([S] ++ Tail)
 
 %% 1.10 'Run-length encoding' of a list
-encode([]) -> [];
-encode([H|[]]) -> [[1, H]];
-encode([H,S|T]) when H == S -> encode([S] ++ T, 1);
-encode([H,S|T]) when H /= S -> [[1, H]] ++ encode([S] ++ T);
-encode([H|[Last|[]]]) when H == Last -> [[2, H]];
-encode([H|[Last|[]]]) when H /= Last -> [[1, H], [1, Last]].
+encode(List) -> case List of
+  [] -> [];
+  [Head|[]] -> [[1, Head]];
+  [Head, Second|[]] -> if
+    Head == Second -> [[2, Head]];
+    Head /= Second -> [[1, Head], [1, Second]]
+  end;
 
-encode([H|[]], Len) -> [[Len + 1, H]];
-encode([H,S|T], Len) when H == S -> encode([S] ++ T, Len + 1);
-encode([H,S|T], Len) when H /= S -> [[Len, H]] ++ encode([S] ++ T);
-encode([H|[Last|[]]], Len) when H == Last -> [[Len + 1, Last]];
-encode([H|[Last|[]]], Len) when H /= Last -> [[Len, H], [1, Last]].
+  [Head,_|_] ->
+    Counter = fun (Fn, C, List) -> 
+      case List of
+        [Head] -> {C+1, []};
+        [Head,Second|Tail] -> if
+          Head == Second -> Fn(Fn, C+1, [Second|Tail]);
+          Head /= Second -> {C+1, [Second|Tail]}
+        end
+      end 
+    end,
+
+    {Count, Tail} = Counter(Counter, 0, List),
+    [[Count, Head]|encode(Tail)]
+end.
